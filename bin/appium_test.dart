@@ -1,22 +1,33 @@
+import 'dart:io';
+
+import 'emulators.dart';
+
 import 'package:appium_driver/async_io.dart';
 
 void main(List<String> arguments) async {
-  Map<String, String> desiredCapabilities = {
-    "platformName": "Android",
-    "automationName": "UiAutomator2",
-    "appium:systemPort": "8203",
-    "appium:mjpegServerPort": "8300",
-  };
-  String appium_server = "http://127.0.0.1:4723";
-  // Create the Appium driver
-  var driver = await createDriver(desired: desiredCapabilities, uri: Uri.parse(appium_server));
+  // list of online devices
+  List<String> devices = await getConnectedDevices();
 
-  // Get the location of the "Follow" element
-  // var loc = await getLocationFollowBotton(driver: driver);
+  for (var i = 0; i < devices.length; i++) {
+    try {
+      AppiumWebDriver driver = await createUnicDrive(emulatorId: devices[i]);
+      Future.delayed(Duration(seconds: 2));
 
-  // print(loc!.top);
+      // Get the location of the "Follow" element
 
-  print(await selectSearchBox(driver: driver));
+      var loc = await getLocationFollowBotton(driver: driver);
+
+      print(loc!.bottom);
+    } catch (e) {
+      print(e);
+    }
+    // await changeGlobalAppiumValues();
+    print("Done ${i + 1}");
+  }
+
+  // print(await selectSearchBox(driver: driver));
+
+  // await runAppiumServer();
 }
 
 // Get the top and bottom location of the "Follow" element . (its a future record)
@@ -60,10 +71,9 @@ Future<({num top, num bottom})?> getLocationFollowBotton({required AppiumWebDriv
       });
     }
   } else {
-    return null;
+    throw "Follows-Botton Not Found";
   }
-
-  driver.quit();
+  await driver.quit();
   return (top: top, bottom: bottom);
 }
 
@@ -107,10 +117,11 @@ Future<({num top, num bottom})?> getLocationRealTab({required AppiumWebDriver dr
       });
     }
   } else {
-    return null;
+    driver.quit();
+    throw "Real-Tab Not Found";
   }
 
-  driver.quit();
+  await driver.quit();
   return (top: top, bottom: bottom);
 }
 
@@ -174,4 +185,54 @@ Future<({bool existStatus, PathType pathType})> checkExistElement({
   await elementsList.isEmpty ? status = false : status = true;
 
   return (existStatus: status, pathType: type);
+}
+
+abstract class GlobalAppiumInfo {
+  static int appium_server_port = 4723;
+  static int appium_system_port = 8201;
+  static int mjpeg_server_port = 8300;
+}
+
+// add 1 counter to each port
+Future<void> changeGlobalAppiumValues() async {
+  GlobalAppiumInfo.appium_server_port++;
+  GlobalAppiumInfo.appium_system_port++;
+  GlobalAppiumInfo.mjpeg_server_port++;
+}
+
+Future<void> runAppiumServer() async {
+  await Process.start("appium.cmd", [
+    "-p",
+    GlobalAppiumInfo.appium_server_port.toString(),
+  ], mode: ProcessStartMode.detached);
+  print("Appium server running");
+}
+
+Future<AppiumWebDriver> createUnicDrive({required String emulatorId}) async {
+  //
+  Map<String, String> desiredCapabilities = {
+    "platformName": "Android",
+    "automationName": "UiAutomator2",
+    "appium:systemPort": GlobalAppiumInfo.appium_system_port.toString(),
+    "appium:mjpegServerPort": GlobalAppiumInfo.mjpeg_server_port.toString(),
+    "udid": emulatorId,
+  };
+  String appium_server = "http://127.0.0.1:${GlobalAppiumInfo.appium_server_port.toString()}";
+  // Create the Appium driver
+  late AppiumWebDriver driver;
+
+  try {
+    await runAppiumServer();
+
+    driver = await createDriver(desired: desiredCapabilities, uri: Uri.parse(appium_server));
+  } catch (e) {
+    if (e is UnknownException && e.statusCode == 500 && e.message!.contains("is busy")) {
+      // driver.quit();
+      // await changeGlobalAppiumValues();
+      driver = await createUnicDrive(emulatorId: emulatorId);
+      print("Port Was Busy Global Info Changed");
+    }
+  }
+
+  return await driver;
 }
