@@ -4,39 +4,23 @@ import 'emulators.dart';
 
 import 'package:appium_driver/async_io.dart';
 
+
 void main(List<String> arguments) async {
   // list of online devices
   List<String> devices = await getConnectedDevices();
+  GlobalAppiumInfo.drivers = await createAPSForAllEmulators(devices: devices);
+  //
+  print(GlobalAppiumInfo.drivers.keys);
 
-  for (var i = 0; i < devices.length; i++) {
-    try {
-      AppiumWebDriver driver = await createUnicDrive(emulatorId: devices[i]);
-      // Future.delayed(Duration(seconds: 2));
-
-      await checkSearchBox(driver: driver, pageName: "setpoush._.shop");
-      // Get the location of the "Follow" element
-      // var followloc = await getLocationFollowBotton(driver: driver);
-      // var realloc = await getLocationRealTab(driver: driver);
-
-      // print(followloc!.bottom);
-      // print(realloc!.top);
-    } catch (e) {
-      print(e);
-    }
-    // await changeGlobalAppiumValues();
-    print("${devices[i]} is Done ${i + 1}");
-  }
-
-  // print(await selectSearchBox(driver: driver));
-
-  // await runAppiumServer();
+  //
+  for (var i = 0; i < devices.length; i++) {}
 }
 
 // Get the top and bottom location of the "Follow" element . (its a future record)
 Future<({num top, num bottom})?> getLocationFollowBotton({required AppiumWebDriver driver}) async {
   // points
   late num top, bottom;
-  // uiautomator address of Real Tab element
+  // uiautomator address of Reel Tab element
   String pathAddress = """new UiSelector().description("Follow")""";
   // checked element
   var checkedElement;
@@ -73,27 +57,34 @@ Future<({num top, num bottom})?> getLocationFollowBotton({required AppiumWebDriv
       });
     }
   } else {
-    throw "Follows-Botton Not Found";
+    top = 0;
+    bottom = 0;
+    print("Follows-Botton Not Found");
   }
-  await driver.quit();
+
+  // driver end
+  // await driver.quit();
+  // close the cmd and stop process
+  // await killCmdTree(GlobalAppiumInfo.processList.first.pid);
+  // result
   return (top: top, bottom: bottom);
 }
 
-// Get the top and bottom location of the "Real Tab" element . (its a future record)
-Future<({num top, num bottom})?> getLocationRealTab({required AppiumWebDriver driver}) async {
+// Get the top and bottom location of the "Reel Tab" element . (its a future record)
+Future<({num top, num bottom})?> getLocationReelTab({required AppiumWebDriver driver}) async {
   // points
   late num top, bottom;
-  // uiautomator address of Real Tab element
+  // uiautomator address of Reel Tab element
   String pathAddress =
       """//androidx.recyclerview.widget.RecyclerView/android.view.ViewGroup[3]/android.view.ViewGroup[2]""";
   //
   var checkedElement = await checkExistElement(driver: driver, pathAddress: pathAddress);
   // if not exist try with another address
-  // if (checkedElement.existStatus == false) {
-  //   pathAddress =
-  //       """//androidx.recyclerview.widget.RecyclerView/android.view.ViewGroup[3]/android.view.ViewGroup[2]""";
-  //   checkedElement = await checkExistElement(driver: driver, pathAddress: pathAddress);
-  // }
+  if (checkedElement.existStatus == false) {
+    pathAddress =
+        """//androidx.recyclerview.widget.RecyclerView/android.view.ViewGroup[2]/android.view.ViewGroup[2]""";
+    checkedElement = await checkExistElement(driver: driver, pathAddress: pathAddress);
+  }
 
   if (checkedElement.existStatus) {
     if (checkedElement.pathType == PathType.uiautomator) {
@@ -119,10 +110,16 @@ Future<({num top, num bottom})?> getLocationRealTab({required AppiumWebDriver dr
       });
     }
   } else {
-    throw "Real-Tab Not Found";
+    top = 0;
+    bottom = 0;
+    print("Reel-Tab Not Found");
   }
 
-  await driver.quit();
+  // driver end
+  // await driver.quit();
+  // // close the cmd and stop process
+  // await killCmdTree(GlobalAppiumInfo.processList.first.pid);
+  // result
   return (top: top, bottom: bottom);
 }
 
@@ -153,72 +150,83 @@ Future<bool> selectSearchBox({required AppiumWebDriver driver}) async {
     clickStatus = true;
   } else {
     clickStatus = false;
-    throw "Sreach Box Not Found";
+    print("Sreach Box Not Found");
   }
 
-  driver.quit();
+  await driver.quit();
   return clickStatus;
 }
 
-Future<bool> checkSearchBox({required AppiumWebDriver driver, required String pageName}) async {
+Future<({bool validStatus, bool existStatus})> checkSearchBox({
+  required AppiumWebDriver driver,
+  required String pageName,
+}) async {
   // valid status
   late bool validStatus;
+  late bool existStatus;
   // uiautomator address of Search Box element
   String pathAddress = """android.widget.MultiAutoCompleteTextView""";
   //checking element
   var checkedElement = await checkExistElement(driver: driver, pathAddress: pathAddress);
   //
   late String elementText;
+  //
+
   if (checkedElement.existStatus) {
     if (checkedElement.pathType == PathType.uiautomator) {
-      driver.findElement(AppiumBy.uiautomator(pathAddress)).then((element) async {
+      await driver.findElement(AppiumBy.uiautomator(pathAddress)).then((element) async {
         // get elemnts Texts
         elementText = await element.text;
         //
         if (elementText != pageName) {
           print("re-execute search-pageName");
-          return false;
+          validStatus = false;
         } else {
           print("the Page Name is Valid");
-          return true;
+          validStatus = true;
         }
       });
     } else if (checkedElement.pathType == PathType.className) {
-      driver.findElement(AppiumBy.className(pathAddress)).then((element) async {
+      await driver.findElement(AppiumBy.className(pathAddress)).then((element) async {
         // get elemnts Text
         elementText = await element.text;
         //
         if (elementText != pageName) {
           print("re-execute search-pageName");
-          return false;
+          validStatus = false;
         } else {
           print("the Page Name is Valid");
-          return true;
+          validStatus = true;
         }
       });
     } else if (checkedElement.pathType == PathType.xpath) {
-      driver.findElement(AppiumBy.xpath(pathAddress)).then((element) async {
+      await driver.findElement(AppiumBy.xpath(pathAddress)).then((element) async {
         // get elemnts Text
         elementText = await element.text;
         //
         if (elementText != pageName) {
           print("re-execute search-pageName");
-          return false;
+          validStatus = false;
         } else {
           print("the Page Name is Valid");
-          return true;
+          validStatus = true;
         }
       });
     }
 
-    validStatus = true;
+    existStatus = true;
   } else {
+    existStatus = false;
     validStatus = false;
-    throw "Sreach Box Not Found";
+    // return (validStatus: validStatus, existStatus: existStatus);
   }
 
-  driver.quit();
-  return validStatus;
+  // driver end
+  // await driver.quit();
+  // close the cmd and stop process
+  // await killCmdTree(GlobalAppiumInfo.processList.first.pid);
+  // result
+  return (validStatus: validStatus, existStatus: existStatus);
 }
 
 // all form of path type
@@ -255,6 +263,8 @@ abstract class GlobalAppiumInfo {
   static int appium_server_port = 4723;
   static int appium_system_port = 8201;
   static int mjpeg_server_port = 8300;
+  static Map<String, AppiumWebDriver> drivers = {};
+  static List<Process> processList = [];
 }
 
 // add 1 counter to each port
@@ -266,10 +276,16 @@ Future<void> changeGlobalAppiumValues() async {
 
 // runing Appium server on CMD
 Future<void> runAppiumServer() async {
-  await Process.start("appium.cmd", [
-    "-p",
-    GlobalAppiumInfo.appium_server_port.toString(),
-  ], mode: ProcessStartMode.detached);
+  var process = await Process.start(
+    "cmd",
+    ["/c", "appium.cmd", "-p", GlobalAppiumInfo.appium_server_port.toString()],
+    mode: ProcessStartMode.detached,
+    runInShell: true,
+  );
+
+  GlobalAppiumInfo.processList.add(process);
+  // print(process.pid);
+
   print("Appium server running");
 }
 
@@ -282,26 +298,66 @@ Future<AppiumWebDriver> createUnicDrive({required String emulatorId}) async {
     "appium:systemPort": GlobalAppiumInfo.appium_system_port.toString(),
     "appium:mjpegServerPort": GlobalAppiumInfo.mjpeg_server_port.toString(),
     "udid": emulatorId,
+    // 'uiautomator2ServerLaunchTimeout': "10000", // 10 seconds
+    'newCommandTimeout': "0", // 10 seconds
   };
   String appium_server = "http://127.0.0.1:${GlobalAppiumInfo.appium_server_port.toString()}";
   // Create the Appium driver
   late AppiumWebDriver driver;
 
+  // run appium-server
+  await runAppiumServer();
+  await delaySeconds(3);
+
   try {
-    // run appium-server
-    await runAppiumServer();
     // create driver
     driver = await createDriver(desired: desiredCapabilities, uri: Uri.parse(appium_server));
+
+    await changeGlobalAppiumValues();
   } catch (e) {
-    if (e is UnknownException && e.statusCode == 500 && e.message!.contains("is busy")) {
-      // driver.quit();
-      // await changeGlobalAppiumValues();
-      //
-      //re-create drive if port was busy
-      driver = await createUnicDrive(emulatorId: emulatorId);
-      print("Port Was Busy Global Info Changed");
-    }
+    //
+    await killCmdTree(GlobalAppiumInfo.processList.last.pid);
+    print("the bas appium server was killed");
+    // err
+    print("this is our err : $e");
+    //
+    await changeGlobalAppiumValues();
+    print("the GlobalValuse Changed");
+    //
+    driver = await createUnicDrive(emulatorId: emulatorId);
   }
 
-  return await driver;
+  return driver;
+}
+
+// close the cmd and stop process
+Future<bool> killCmdTree(int pid) async {
+  // close and stop
+  final result = await Process.run('taskkill', [
+    '/F',
+    '/T',
+    '/PID',
+    pid.toString(),
+  ], runInShell: true);
+
+  // remove the pId from list
+  GlobalAppiumInfo.processList.removeWhere((element) => element.pid == pid);
+
+  stdout.write(result.stdout);
+  stderr.write(result.stderr);
+
+  return result.exitCode == 0;
+}
+
+// create a unic driver for each emulator those are run
+Future<Map<String, AppiumWebDriver>> createAPSForAllEmulators({
+  required List<String> devices,
+}) async {
+  Map<String, AppiumWebDriver> drivers = {};
+
+  for (var e in devices) {
+    drivers[e] = await createUnicDrive(emulatorId: e);
+  }
+
+  return drivers;
 }
